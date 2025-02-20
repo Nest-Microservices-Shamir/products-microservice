@@ -1,42 +1,46 @@
-import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { PrismaClient } from '@prisma/client';
 import { PaginationDto } from 'src/common';
 import { RpcException } from '@nestjs/microservices';
+import { PRODUCT_REPOSITORY } from 'src/config';
+import { Product } from './entities/product.entity';
 
 @Injectable()
-export class ProductsService extends PrismaClient implements OnModuleInit {
+export class ProductsService {
+
   private readonly logger = new Logger('ProductsService');
 
-  onModuleInit() {
-    this.$connect();
-    this.logger.log('Database connected');
-  }
+  constructor(
+    @Inject(PRODUCT_REPOSITORY) private productRepository: typeof Product,
+  ){}
 
   create(createProductDto: CreateProductDto) {
-    return this.product.create({ data: createProductDto });
+    return this.productRepository.create({ ...createProductDto });
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { page, limit } = paginationDto;
-    const totalPage = await this.product.count({ where: { available: true } });
-    const lastPage = Math.ceil(totalPage / limit);
+  async getAll(paginationDto: PaginationDto) {
+    
+    const { page: currentPage, limit: perPage } = paginationDto;
 
-    return {
-      data: await this.product.findMany({
-        skip: (page - 1) * limit,
-        take: limit,
-        where: { available: true },
-      }),
-      meta: { total: totalPage, page: page, lastPage: lastPage },
-    };
+    const { count: totalPages, rows: queryProducts } =
+      await this.productRepository.findAndCountAll({
+        limit: perPage,
+        offset: (currentPage - 1) * perPage,
+      });
+
+      return {
+        data: queryProducts,
+        meta: {
+          total: totalPages,
+          page: currentPage,
+          lastPage: Math.ceil(totalPages / perPage),
+        },
+      };
   }
 
-  async findOne(id: number) {
-    const product = await this.product.findFirst({
-      where: { id, available: true },
-    });
+  async getById(id: string) {
+    const product = await this.productRepository.findByPk(id);
     if (!product) {
       throw new RpcException({
         message: `Product with id: #${id} not found`,
@@ -46,28 +50,44 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto) {
     const { id: ___, ...restData } = updateProductDto;
-    await this.findOne(id);
-    return this.product.update({ where: { id }, data: restData });
+
+    const productQuery = await this.productRepository.findByPk(id);
+
+    if(!productQuery){
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `Product with id: #${id} not found`,
+      });
+    }
+
+    await productQuery.update({ ...restData });
+
+    return productQuery
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
-    const product = await this.product.update({
-      where: { id },
-      data: { available: false },
-    });
-    return product;
+
+  async deleteById(id: string) {
+    const productQuery = await this.productRepository.findByPk(id);
+
+    if(!productQuery){
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `Product with id: #${id} not found`,
+      });
+    }
+
+    await productQuery.destroy();
+    
+    return productQuery;
   }
 
-  async validateProducts(ids: number[]) {
+  async validateProducts(ids: string[]) {
 
     ids = Array.from(new Set(ids));
 
-    const products = await this.product.findMany({
-      where: { id: { in: ids } },
-    });
+    const products = await this.productRepository.findAll({ where: { id: ids } });
 
     if (products.length !== ids.length) {
       throw new RpcException({

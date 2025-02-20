@@ -1,4 +1,4 @@
-import { Controller, ParseIntPipe } from '@nestjs/common';
+import { Controller, ParseUUIDPipe } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -9,33 +9,33 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @MessagePattern({ cmd: 'create_product' })
+  @MessagePattern({ cmd: 'product.create' })
   create(@Payload() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
   }
 
-  @MessagePattern({ cmd: 'get_all_product' })
-  findAll(@Payload() paginationDto: PaginationDto) {
-    return this.productsService.findAll(paginationDto);
+  @MessagePattern({ cmd: 'product.get_all' })
+  getAll(@Payload() paginationDto: PaginationDto) {
+    return this.productsService.getAll(paginationDto);
   }
 
-  @MessagePattern({ cmd: 'get_one_product' })
-  findOne(@Payload('id', ParseIntPipe) id: number) {
-    return this.productsService.findOne(id);
+  @MessagePattern({ cmd: 'product.get_by_id' })
+  getById(@Payload('id', ParseUUIDPipe) id: string) {
+    return this.productsService.getById(id);
   }
 
-  @MessagePattern({ cmd: 'update_product' })
+  @MessagePattern({ cmd: 'product.update' })
   update(@Payload() updateProductDto: UpdateProductDto) {
     return this.productsService.update(updateProductDto.id, updateProductDto);
   }
 
-  @MessagePattern({ cmd: 'delete_product' })
-  remove(@Payload('id', ParseIntPipe) id: number) {
-    return this.productsService.remove(id);
+  @MessagePattern({ cmd: 'product.delete_by_id' })
+  deleteById(@Payload('id', ParseUUIDPipe) id: string) {
+    return this.productsService.deleteById(id);
   }
 
-  @MessagePattern({ cmd: 'validate_products' })
-  validateProducts(@Payload() ids: number[]){
+  @MessagePattern({ cmd: 'product.validate_ids' })
+  validateProducts(@Payload() ids: string[]){
     return this.productsService.validateProducts(ids);
   }
 }

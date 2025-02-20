@@ -1,0 +1,3 @@
+export const NATS_SERVICE = 'NATS_SERVICE';
+
+export const PRODUCT_REPOSITORY = 'PRODUCT_REPOSITORY';
