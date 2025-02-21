@@ -9,21 +9,13 @@ export const databaseProviders = [
   {
     provide: 'SEQUELIZE',
     useFactory: async () => {
-      const sequelize = new Sequelize({
-        dialect: 'postgres',
-        host: envs.dbHost,
-        port: envs.dbPort,
-        username: envs.dbUser,
-        password: envs.dbPassword,
-        database: envs.dbName,
-        logging: false,
-      });
+      const sequelize = new Sequelize(envs.postgresUrl, { logging:false });
       sequelize.addModels([Product]);
       await sequelize.sync();
 
       try {
         await sequelize.authenticate();
-        logger.log(`Database running on server: ${ envs.dbHost }:${ envs.dbPort }`)
+        logger.log(`Database running`)
       } catch (error) {
         logger.error(`Unable to connect to the database: ${ error }`)
       }
